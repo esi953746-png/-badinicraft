@@ -1,0 +1,82 @@
+import sqlite3
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
+from telegram.error import BadRequest
+
+# تۆکنێ تە یێ فەرمی یێ هاتیە ڕێکخستن [3]
+TOKEN = '8609513413:AAFfdh8xUenvLAga3DLc4InSVjPm3TLQzR8'
+
+# ناسنامەیا کەنالێ تە یێ فەرمی [3]
+CHANNEL_USERNAME = '@Armanjofficial' 
+
+# ل خوارێ ل جهێ ڤی لێنکی، لێنکێ نوو یێ یارییا خۆ (index.html) یێ کو ژ GitHub Pages یان Vercel وەردگری دانیە [3]
+GAME_URL = "https://github.io"
+
+REFERRAL_REWARD = 5000
+
+# دروستکرنا داتابەیسێ بۆ پاشکەوتکرنا پۆینتێن یاریزانان [3]
+def init_db():
+    conn = sqlite3.connect('earncraft.db')
+    cursor = conn.cursor()
+    cursor.execute('''CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY, points INTEGER DEFAULT 0, referred_by INTEGER)''')
+    conn.commit()
+    conn.close()
+
+# پشکنیما ئەندامیەتیا کەنالێ Armanjofficial [3]
+async def is_subscribed(app_bot, user_id: int) -> bool:
+    try:
+        member = await app_bot.get_chat_member(chat_id=CHANNEL_USERNAME, user_id=user_id)
+        return member.status in ['member', 'administrator', 'creator']
+    except BadRequest:
+        return False
+
+# فەرمانا دەستپێکرنێ (/start) [3]
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user_id = update.effective_user.id
+    user_name = update.effective_user.first_name
+    app_bot = context.bot
+    
+    init_db()
+    subscribed = await is_subscribed(app_bot, user_id)
+
+    if subscribed:
+        welcome_text = f"سlaڤ {user_name}! ✨\nتە کەنالێ مە یێ جوین کری، نوکە تو دشێی یاریێ دەستپێبکەی.\n\nبۆ کۆمکرنا پۆینتان، کلیکێ ل سەر دوگمەیا خوارێ بکە👇" [3]
+        keyboard = [[InlineKeyboardButton("🎮 دەستپێکرنا یاریێ", web_app={"url": GAME_URL})]] [3]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.message.reply_text(text=welcome_text, reply_markup=reply_markup)
+    else:
+        alert_text = f"سlaڤ {user_name}!\nببورە، تو نەشێی یاریێ بکەی هەتا جوین نەبی د کەنالێ مە یێ فەرمی دا. ❌\n\nپشتی تو جوین دبی، کلیکێ ل سەر دوگمەیا (من جوین کر ✅) بکە." [3]
+        keyboard = [
+            [InlineKeyboardButton("📢 جوین بوون د کەنالی دا", url=f"https://t.me{CHANNEL_USERNAME.replace('@', '')}")], [3]
+            [InlineKeyboardButton("من جوین کر ✅", callback_data="check_subscription")] [3]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.message.reply_text(text=alert_text, reply_markup=reply_markup)
+
+# دوگمەیا پشکنیما دووبارە [3]
+async def check_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    user_id = query.from_user.id
+    user_name = query.from_user.first_name
+    app_bot = context.bot
+
+    await query.answer()
+    subscribed = await is_subscribed(app_bot, user_id)
+
+    if subscribed:
+        welcome_text = f"سlaڤ {user_name}! ✨\nپشکنیما تە سەرکەفتی بوو! نوکە تو دشێی یاریێ دەستپێبکەی.\n\nبۆ کۆمکرنا پۆینتان، کلیکێ ل سەر دوگمەیا خوارێ بکە👇" [3]
+        keyboard = [[InlineKeyboardButton("🎮 دەستپێکرنا یاریێ", web_app={"url": GAME_URL})]] [3]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(text=welcome_text, reply_markup=reply_markup)
+    else:
+        await query.answer(text="تۆ هێشتا جوین نەبوویە! ❌ هیڤییە بەشداری کەنالی ببە پاشان کلیک بکە.", show_alert=True) [3]
+
+def main():
+    app = Application.builder().token(TOKEN).build() [3]
+    app.add_handler(CommandHandler("start", start)) [3]
+    app.add_handler(CallbackQueryHandler(check_button, pattern="check_subscription")) [3]
+    print("بۆتێ کەنالێ Armanjofficial دەستبکار بوو...") [3]
+    app.run_polling() [3]
+
+if __name__ == '__main__':
+    main()
